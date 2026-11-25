@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civic Issue Heatmap &amp; Incident Analytics</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Main Navigation -->
+    <header class="navbar">
+        <a href="/" class="brand">
+            <span class="brand-icon">🔥</span>
+            <span>CivicHeat</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/" class="nav-link active">🗺️ Live Map</a>
+            <a href="/report.html" class="nav-link">📢 Report Issue</a>
+            <div id="nav-user-container" style="display: flex; align-items: center; gap: 0.75rem;">
+                <!-- Populated dynamically by api.js -->
+            </div>
+        </nav>
+    </header>
+
+    <!-- Map Viewport Container -->
+    <main class="map-layout">
+
+        <!-- Controls Filter Overlay -->
+        <div class="map-controls-bar">
+            <div class="view-mode-toggle">
+                <button id="toggle-heat" class="toggle-btn active" title="Heatmap Density View">🔥 Heatmap</button>
+                <button id="toggle-markers" class="toggle-btn" title="Individual Incident Markers">📍 Markers</button>
+            </div>
+
+            <select id="filter-category" class="map-control-select">
+                <option value="">All Categories</option>
+                <option value="POTHOLE">🕳️ Potholes</option>
+                <option value="GARBAGE">🗑️ Garbage</option>
+                <option value="STREETLIGHT">💡 Streetlights</option>
+                <option value="WATER_LEAK">🚰 Water Leaks</option>
+                <option value="NOISE">📢 Noise</option>
+            </select>
+
+            <select id="filter-days" class="map-control-select">
+                <option value="">All Time</option>
+                <option value="1">Past 24 Hours</option>
+                <option value="7">Past 7 Days</option>
+                <option value="14" selected>Past 14 Days</option>
+                <option value="30">Past 30 Days</option>
+            </select>
+
+            <button id="btn-refresh" class="btn btn-secondary btn-sm" title="Reload Heatmap Data">🔄 Refresh</button>
+        </div>
+
+        <!-- Leaflet Map Canvas -->
+        <div id="map"></div>
+
+        <!-- Collapsible Hotspots Side Panel -->
+        <aside class="side-panel" id="side-panel">
+            <div class="side-panel-header">
+                <div class="side-panel-title">
+                    <span>⚡ Critical Hotspots</span>
+                    <span id="hotspot-count-badge" class="badge badge-high">0</span>
+                </div>
+                <button id="panel-toggle-btn" class="btn btn-secondary btn-sm" title="Toggle Hotspot Panel">✕</button>
+            </div>
+            <div class="hotspot-list" id="hotspot-list-container">
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem;">
+                    Loading civic hotspots...
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Complaint Detail Lightbox Modal -->
+    <div class="modal-backdrop" id="complaint-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-complaint-title">Complaint Details</h3>
+                <button class="modal-close" onclick="closeModal('complaint-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;" id="modal-badges"></div>
+                <p id="modal-complaint-desc" style="color: var(--text-secondary); margin-bottom: 1rem;"></p>
+
+                <!-- Location & Department Info -->
+                <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                        <span style="color: var(--text-muted);">Department:</span>
+                        <strong id="modal-dept-name">Sanitation</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                        <span style="color: var(--text-muted);">Reported Address:</span>
+                        <span id="modal-address">Coordinates (0, 0)</span>
+                    </div>
+                </div>
+
+                <!-- Attached Photos -->
+                <div id="modal-images-section" style="margin-bottom: 1.25rem; display: none;">
+                    <label class="form-label">Attached Photos</label>
+                    <div id="modal-images-grid" class="preview-grid"></div>
+                </div>
+
+                <!-- Severity Breakdown -->
+                <div id="modal-severity-section" style="margin-bottom: 1.25rem;">
+                    <label class="form-label">Severity Breakdown</label>
+                    <div id="modal-severity-breakdown" style="font-size: 0.85rem; background: rgba(15, 23, 42, 0.5); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);"></div>
+                </div>
+
+                <!-- Status Timeline History -->
+                <label class="form-label">Status Timeline</label>
+                <div class="timeline" id="modal-timeline"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="modal-upvote-btn" class="btn btn-primary btn-sm">
+                    <span>👍 Upvote</span>
+                    <span id="modal-upvote-count" style="background: rgba(255,255,255,0.2); padding: 0.1rem 0.4rem; border-radius: var(--radius-full);">0</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="closeModal('complaint-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS & Leaflet.heat Plugin -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="/js/api.js"></script>
+
+    <script>
+        let map;
+        let heatLayer;
+        let markersLayer;
+        let activeViewMode = 'heat'; // 'heat' or 'markers'
+        let currentComplaintId = null;
+
+        // Initialize Map
+        function initMap() {
+            // Center on New Delhi, India
+            map = L.map('map', { zoomControl: false }).setView([28.6139, 77.2090], 12);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            // Standard Open-Source OpenStreetMap Tiles (No API Key Required)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            markersLayer = L.layerGroup().addTo(map);
+
+            loadData();
+
+            // Handle panel toggle
+            const sidePanel = document.getElementById('side-panel');
+            document.getElementById('panel-toggle-btn').addEventListener('click', () => {
+                sidePanel.style.display = sidePanel.style.display === 'none' ? 'flex' : 'none';
+            });
+        }
+
+        async function loadData() {
+            const category = document.getElementById('filter-category').value;
+            const days = document.getElementById('filter-days').value;
+
+            const params = new URLSearchParams();
+            if (category) params.append('category', category);
+            if (days) params.append('days', days);
+
+            try {
+                // 1. Load Heat Points
+                const heatPoints = await apiFetch(`/heatmap/points?${params.toString()}`);
+                renderHeatmap(heatPoints);
+
+                // 2. Load Hotspots
+                const hotspots = await apiFetch(`/heatmap/hotspots?${params.toString()}`);
+                renderHotspots(hotspots);
+
+                // 3. Load Markers
+                const complaintsPage = await apiFetch(`/complaints?${params.toString()}&size=100`);
+                renderMarkers(complaintsPage.content || []);
+            } catch (err) {
+                showToast('Failed to load map data: ' + err.message, 'error');
+            }
+        }
+
+        function renderHeatmap(points) {
+            if (heatLayer) {
+                map.removeLayer(heatLayer);
+            }
+
+            if (points && points.length > 0) {
+                // Leaflet.heat expects [lat, lng, intensity]
+                heatLayer = L.heatLayer(points, {
+                    radius: 28,
+                    blur: 18,
+                    maxZoom: 17,
+                    max: 1.0,
+                    gradient: {
+                        0.2: '#3b82f6',
+                        0.4: '#10b981',
+                        0.6: '#f59e0b',
+                        0.8: '#f97316',
+                        1.0: '#ef4444'
+                    }
+                });
+
+                if (activeViewMode === 'heat') {
+                    heatLayer.addTo(map);
+                }
+
+                // If first load and has points, pan map to first point
+                if (points.length > 0 && points[0].length >= 2) {
+                    map.panTo([points[0][0], points[0][1]]);
+                }
+            }
+        }
+
+        function renderMarkers(complaints) {
+            markersLayer.clearLayers();
+
+            complaints.forEach(c => {
+                if (c.latitude && c.longitude) {
+                    const iconColor = c.severityLevel === 'CRITICAL' ? '#ef4444' :
+                                      c.severityLevel === 'HIGH' ? '#f97316' :
+                                      c.severityLevel === 'MEDIUM' ? '#f59e0b' : '#10b981';
+
+                    const customIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background-color: ${iconColor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 8px ${iconColor};"></div>`,
+                        iconSize: [14, 14],
+                        iconAnchor: [7, 7]
+                    });
+
+                    const marker = L.marker([c.latitude, c.longitude], { icon: customIcon });
+                    
+                    marker.on('click', () => openComplaintModal(c.id));
+                    markersLayer.addLayer(marker);
+                }
+            });
+
+            if (activeViewMode !== 'markers') {
+                map.removeLayer(markersLayer);
+            }
+        }
+
+        function renderHotspots(hotspots) {
+            const container = document.getElementById('hotspot-list-container');
+            const badge = document.getElementById('hotspot-count-badge');
+            badge.innerText = hotspots.length;
+
+            if (!hotspots || hotspots.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem;">No concentrated hotspots found for active filters.</div>`;
+                return;
+            }
+
+            container.innerHTML = hotspots.map((h, idx) => `
+                <div class="hotspot-card" onclick="flyToHotspot(${h.centroidLat}, ${h.centroidLng})">
+                    <div class="hotspot-card-header">
+                        <span style="font-weight: 700; font-size: 0.9rem;">#${idx + 1} ${renderCategoryBadge(h.dominantCategory)}</span>
+                        ${renderSeverityBadge(Math.round(h.averageSeverity))}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary);">
+                        <span>${h.count} Incidents Aggregated</span>
+                        <span>Intensity: ${(h.heatIntensity * 100).toFixed(0)}%</span>
+                    </div>
+                    <div class="hotspot-intensity-bar">
+                        <div class="hotspot-intensity-fill" style="width: ${Math.max(10, h.heatIntensity * 100)}%;"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function flyToHotspot(lat, lng) {
+            map.flyTo([lat, lng], 16, { animate: true, duration: 1.2 });
+        }
+
+        async function openComplaintModal(id) {
+            currentComplaintId = id;
+            try {
+                const c = await apiFetch(`/complaints/${id}`);
+                document.getElementById('modal-complaint-title').innerText = c.title;
+                document.getElementById('modal-complaint-desc').innerText = c.description;
+                document.getElementById('modal-dept-name').innerText = c.departmentName || 'Not Assigned';
+                document.getElementById('modal-address').innerText = c.address || `${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`;
+                document.getElementById('modal-upvote-count').innerText = c.upvoteCount || 0;
+
+                // Badges
+                document.getElementById('modal-badges').innerHTML = `
+                    ${renderSeverityBadge(c.severityScore, c.severityLevel)}
+                    ${renderStatusBadge(c.status)}
+                    <span class="badge" style="background: rgba(255,255,255,0.08);">${renderCategoryBadge(c.category)}</span>
+                `;
+
+                // Images
+                const imagesSection = document.getElementById('modal-images-section');
+                const imagesGrid = document.getElementById('modal-images-grid');
+                if (c.images && c.images.length > 0) {
+                    imagesSection.style.display = 'block';
+                    imagesGrid.innerHTML = c.images.map(img => `
+                        <div class="preview-item">
+                            <a href="${img.imageUrl}" target="_blank">
+                                <img src="${img.imageUrl}" alt="Incident Attachment">
+                            </a>
+                        </div>
+                    `).join('');
+                } else {
+                    imagesSection.style.display = 'none';
+                }
+
+                // Severity Breakdown
+                const breakdownDiv = document.getElementById('modal-severity-breakdown');
+                if (c.severityBreakdown) {
+                    breakdownDiv.innerHTML = Object.entries(c.severityBreakdown).map(([k, v]) => `
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 0.2rem;">
+                            <span style="color: var(--text-muted);">${k}:</span>
+                            <strong>${v}</strong>
+                        </div>
+                    `).join('');
+                } else {
+                    breakdownDiv.innerText = 'Standard category weighting applied.';
+                }
+
+                // Status Timeline
+                const timeline = document.getElementById('modal-timeline');
+                if (c.statusHistories && c.statusHistories.length > 0) {
+                    timeline.innerHTML = c.statusHistories.map(h => `
+                        <div class="timeline-item">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.2rem;">
+                                    ${renderStatusBadge(h.newStatus)}
+                                    <span style="color: var(--text-muted);">${formatDate(h.createdAt)}</span>
+                                </div>
+                                <div style="font-size: 0.825rem; color: var(--text-secondary);">${escapeHtml(h.remarks || 'Status updated')}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    timeline.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No history recorded yet.</div>`;
+                }
+
+                openModal('complaint-modal');
+            } catch (err) {
+                showToast('Failed to load complaint details: ' + err.message, 'error');
+            }
+        }
+
+        // Upvote button handler
+        document.getElementById('modal-upvote-btn').addEventListener('click', async () => {
+            if (!currentComplaintId) return;
+            if (!isAuthenticated()) {
+                showToast('Please sign in to upvote issues', 'warning');
+                setTimeout(() => window.location.href = '/login.html', 1000);
+                return;
+            }
+
+            try {
+                const updated = await apiFetch(`/complaints/${currentComplaintId}/upvote`, { method: 'POST' });
+                document.getElementById('modal-upvote-count').innerText = updated.upvoteCount;
+                showToast('Upvote recorded! Priority score updated.', 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        });
+
+        // View Mode Toggles
+        document.getElementById('toggle-heat').addEventListener('click', () => {
+            activeViewMode = 'heat';
+            document.getElementById('toggle-heat').classList.add('active');
+            document.getElementById('toggle-markers').classList.remove('active');
+            if (markersLayer) map.removeLayer(markersLayer);
+            if (heatLayer) heatLayer.addTo(map);
+        });
+
+        document.getElementById('toggle-markers').addEventListener('click', () => {
+            activeViewMode = 'markers';
+            document.getElementById('toggle-markers').classList.add('active');
+            document.getElementById('toggle-heat').classList.remove('active');
+            if (heatLayer) map.removeLayer(heatLayer);
+            if (markersLayer) markersLayer.addTo(map);
+        });
+
+        // Filters Change
+        document.getElementById('filter-category').addEventListener('change', loadData);
+        document.getElementById('filter-days').addEventListener('change', loadData);
+        document.getElementById('btn-refresh').addEventListener('click', () => {
+            loadData();
+            showToast('Heatmap data refreshed', 'info');
+        });
+
+        document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+</body>
+</html>

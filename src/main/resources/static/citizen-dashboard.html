@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citizen Dashboard - CivicHeat</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .citizen-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+        .citizen-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .citizen-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .citizen-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+        }
+        .complaint-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            transition: border-color 0.2s ease;
+        }
+        .complaint-card:hover {
+            border-color: var(--primary);
+        }
+        .timeline-steps {
+            display: flex;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            gap: 0.5rem;
+            overflow-x: auto;
+        }
+        .timeline-step {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .timeline-step.active {
+            color: #60a5fa;
+            font-weight: 600;
+        }
+        .timeline-step.done {
+            color: #34d399;
+            font-weight: 600;
+        }
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .timeline-step.active .step-dot {
+            background: #60a5fa;
+            box-shadow: 0 0 8px #60a5fa;
+        }
+        .timeline-step.done .step-dot {
+            background: #34d399;
+        }
+        .step-arrow {
+            color: var(--border-color);
+            margin: 0 0.25rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Navigation -->
+    <header class="navbar">
+        <a href="/citizen-dashboard.html" class="brand">
+            <span class="brand-icon">🔥</span>
+            <span>CivicHeat <small style="font-size: 0.75rem; color: #60a5fa; font-weight: 600; letter-spacing: 0.05em; background: rgba(59,130,246,0.15); padding: 0.2rem 0.5rem; border-radius: 4px; margin-left: 0.5rem;">CITIZEN PORTAL</small></span>
+        </a>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">🗺️ Live Heatmap</a>
+            <a href="/report.html" class="nav-link">📢 Report Issue</a>
+            <div id="nav-user-container" style="display: flex; align-items: center; gap: 0.75rem;"></div>
+        </nav>
+    </header>
+
+    <div class="dashboard-container">
+
+        <!-- Citizen Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.025em;" id="citizen-welcome">Welcome, Citizen</h1>
+                <p style="color: var(--text-secondary);">Track your reported civic complaints, monitor resolution statuses, and view local community alerts</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <a href="/report.html" class="btn btn-primary">➕ Report New Issue</a>
+                <a href="/" class="btn btn-secondary">🗺️ View Live Heatmap</a>
+            </div>
+        </div>
+
+        <!-- Metrics Overview -->
+        <div class="citizen-grid">
+            <div class="citizen-card">
+                <div class="citizen-card-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">📋</div>
+                <div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">My Submitted Issues</div>
+                    <div style="font-size: 1.75rem; font-weight: 800; color: #fff;" id="my-total-count">0</div>
+                </div>
+            </div>
+            <div class="citizen-card">
+                <div class="citizen-card-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">⏳</div>
+                <div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">In Progress / Triaged</div>
+                    <div style="font-size: 1.75rem; font-weight: 800; color: #f59e0b;" id="my-active-count">0</div>
+                </div>
+            </div>
+            <div class="citizen-card">
+                <div class="citizen-card-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">✅</div>
+                <div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Resolved Issues</div>
+                    <div style="font-size: 1.75rem; font-weight: 800; color: #10b981;" id="my-resolved-count">0</div>
+                </div>
+            </div>
+            <div class="citizen-card">
+                <div class="citizen-card-icon" style="background: rgba(236, 72, 153, 0.15); color: #f472b6;">👍</div>
+                <div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Community Upvotes</div>
+                    <div style="font-size: 1.75rem; font-weight: 800; color: #f472b6;" id="my-upvotes-count">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layout Grid: Left = My Issues, Right = Community Activity & Hotspots -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+            
+            <!-- Left: My Complaints Table / List -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="font-size: 1.25rem; font-weight: 700;">My Reported Issues</h2>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);" id="my-records-label">Showing recent complaints</span>
+                </div>
+
+                <div id="my-complaints-list">
+                    <div style="text-align: center; padding: 3rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏳</div>
+                        <p style="color: var(--text-secondary);">Loading your reported issues...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Community Feed & Live Alerts -->
+            <div>
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>🔥</span> City Hotspots & Alerts
+                    </h3>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        High-density civic incident zones calculated algorithmically.
+                    </p>
+                    <div id="citizen-hotspots-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <p style="color: var(--text-muted); font-size: 0.85rem;">Loading hotspots...</p>
+                    </div>
+                </div>
+
+                <div style="background: linear-gradient(135deg, rgba(30, 58, 138, 0.4), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📸</div>
+                    <h4 style="font-weight: 700; margin-bottom: 0.35rem;">See a Civic Problem?</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Report potholes, water leaks, broken streetlights, or trash accumulation with photos and GPS.
+                    </p>
+                    <a href="/report.html" class="btn btn-primary" style="width: 100%;">File a Complaint</a>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Complaint Detail Modal -->
+    <div id="modal-citizen-detail" class="modal-backdrop">
+        <div class="modal-card" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-detail-title">Incident Details</h3>
+                <button class="modal-close" onclick="closeModal('modal-citizen-detail')">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-detail-body">
+                <!-- Injected dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-citizen-detail')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        // Guard route: require authenticated user
+        if (!isAuthenticated()) {
+            window.location.href = '/login.html';
+        }
+
+        const user = getUser();
+        if (user && user.fullName) {
+            document.getElementById('citizen-welcome').innerText = `Welcome, ${user.fullName}`;
+        }
+
+        // Fetch citizen's complaints
+        async function loadMyComplaints() {
+            const listContainer = document.getElementById('my-complaints-list');
+            try {
+                const res = await apiFetch('/complaints/mine?page=0&size=50');
+                const complaints = res.content || [];
+
+                let activeCount = 0;
+                let resolvedCount = 0;
+                let totalUpvotes = 0;
+
+                complaints.forEach(c => {
+                    if (c.status === 'RESOLVED') resolvedCount++;
+                    else if (c.status === 'SUBMITTED' || c.status === 'TRIAGED' || c.status === 'IN_PROGRESS') activeCount++;
+                    totalUpvotes += (c.upvoteCount || c.upvotes || 0);
+                });
+
+                document.getElementById('my-total-count').innerText = res.totalElements || complaints.length;
+                document.getElementById('my-active-count').innerText = activeCount;
+                document.getElementById('my-resolved-count').innerText = resolvedCount;
+                document.getElementById('my-upvotes-count').innerText = totalUpvotes;
+
+                if (complaints.length === 0) {
+                    listContainer.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🎉</div>
+                            <h3 style="font-weight: 700; margin-bottom: 0.25rem;">No Complaints Reported Yet</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem;">You haven't filed any civic complaints yet.</p>
+                            <a href="/report.html" class="btn btn-primary">Report Your First Issue</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                listContainer.innerHTML = complaints.map(c => renderComplaintCard(c)).join('');
+
+            } catch (err) {
+                listContainer.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-lg); color: #f87171;">
+                        Failed to load complaints: ${escapeHtml(err.message)}
+                    </div>
+                `;
+            }
+        }
+
+        function renderComplaintCard(c) {
+            const steps = [
+                { id: 'SUBMITTED', label: '1. Submitted' },
+                { id: 'TRIAGED', label: '2. Triaged' },
+                { id: 'IN_PROGRESS', label: '3. In Progress' },
+                { id: 'RESOLVED', label: '4. Resolved' }
+            ];
+
+            const statusOrder = ['SUBMITTED', 'TRIAGED', 'IN_PROGRESS', 'RESOLVED'];
+            const currentIdx = statusOrder.indexOf(c.status);
+
+            const timelineHtml = c.status === 'REJECTED' 
+                ? `<div style="color: #ef4444; font-size: 0.8rem; margin-top: 0.75rem; font-weight: 600;">❌ Issue Marked as Rejected / Not Actionable</div>`
+                : `<div class="timeline-steps">
+                    ${steps.map((s, idx) => {
+                        let stateClass = '';
+                        if (currentIdx > idx) stateClass = 'done';
+                        else if (currentIdx === idx) stateClass = 'active';
+                        return `
+                            <div class="timeline-step ${stateClass}">
+                                <div class="step-dot"></div>
+                                <span>${s.label}</span>
+                            </div>
+                            ${idx < steps.length - 1 ? '<span class="step-arrow">&rarr;</span>' : ''}
+                        `;
+                    }).join('')}
+                   </div>`;
+
+            return `
+                <div class="complaint-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; flex-wrap: wrap;">
+                                <span style="font-weight: 600; color: #60a5fa; font-size: 0.85rem;">#${c.id.substring(0, 8)}</span>
+                                <span style="font-size: 0.85rem; font-weight: 600;">${renderCategoryBadge(c.category)}</span>
+                                ${renderStatusBadge(c.status)}
+                                ${renderSeverityBadge(c.severityScore, c.severityLevel)}
+                                ${c.duplicate ? '<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">Linked Duplicate</span>' : ''}
+                            </div>
+                            <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.25rem;">${escapeHtml(c.title)}</h3>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">${escapeHtml(c.description || '')}</p>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 1rem; flex-wrap: wrap;">
+                                <span>📅 Reported: ${formatDate(c.createdAt)}</span>
+                                <span>📍 Coordinates: ${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}</span>
+                                <span>🏛️ Dept: <strong>${escapeHtml(c.departmentName || (c.department ? c.department.name : 'Auto-routing'))}</strong></span>
+                                <span>👍 Upvotes: <strong>${c.upvoteCount || c.upvotes || 0}</strong></span>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary btn-sm" onclick="viewComplaintDetail('${c.id}')">View Details</button>
+                        </div>
+                    </div>
+                    ${timelineHtml}
+                </div>
+            `;
+        }
+
+        async function viewComplaintDetail(id) {
+            try {
+                const c = await apiFetch(`/complaints/${id}`);
+                const body = document.getElementById('modal-detail-body');
+                
+                let mediaHtml = '';
+                if (c.images && c.images.length > 0) {
+                    mediaHtml = `
+                        <div style="margin-top: 1rem;">
+                            <label class="form-label">Attached Photos:</label>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                ${c.images.map(img => `
+                                    <a href="${img.imageUrl}" target="_blank">
+                                        <img src="${img.imageUrl}" style="width: 100px; height: 100px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let historyHtml = '';
+                if (c.statusHistories && c.statusHistories.length > 0) {
+                    historyHtml = `
+                        <div style="margin-top: 1.25rem;">
+                            <label class="form-label">Status Progression History:</label>
+                            <div style="background: rgba(15, 23, 42, 0.6); border-radius: var(--radius-md); padding: 0.75rem; border: 1px solid var(--border-color); font-size: 0.8rem;">
+                                ${c.statusHistories.map(h => `
+                                    <div style="padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                        <strong>${renderStatusBadge(h.newStatus)}</strong> by ${escapeHtml(h.changedByUserName || 'System')} on ${formatDate(h.createdAt)}
+                                        ${h.remarks ? `<br><span style="color: var(--text-muted); margin-top: 0.2rem; display: inline-block;">💬 ${escapeHtml(h.remarks)}</span>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                body.innerHTML = `
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                        ${renderCategoryBadge(c.category)}
+                        ${renderStatusBadge(c.status)}
+                        ${renderSeverityBadge(c.severityScore, c.severityLevel)}
+                    </div>
+                    <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">${escapeHtml(c.title)}</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">${escapeHtml(c.description || 'No description provided')}</p>
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
+                        <div><strong>Assigned Department:</strong> ${escapeHtml(c.departmentName || 'Auto-routing')}</div>
+                        <div><strong>Community Upvotes:</strong> ${c.upvoteCount || 0}</div>
+                        <div><strong>Latitude:</strong> ${c.latitude.toFixed(6)}</div>
+                        <div><strong>Longitude:</strong> ${c.longitude.toFixed(6)}</div>
+                        <div><strong>Created At:</strong> ${formatDate(c.createdAt)}</div>
+                        <div><strong>Resolved At:</strong> ${c.resolvedAt ? formatDate(c.resolvedAt) : 'Pending'}</div>
+                    </div>
+                    ${mediaHtml}
+                    ${historyHtml}
+                `;
+
+                openModal('modal-citizen-detail');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        // Load Hotspots on Right Sidebar
+        async function loadHotspots() {
+            const container = document.getElementById('citizen-hotspots-container');
+            try {
+                const hotspots = await apiFetch('/heatmap/hotspots?days=30');
+                if (!hotspots || hotspots.length === 0) {
+                    container.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No critical hotspots detected currently.</div>`;
+                    return;
+                }
+
+                container.innerHTML = hotspots.slice(0, 4).map(h => `
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                            <strong style="font-size: 0.85rem;">${renderCategoryBadge(h.dominantCategory)}</strong>
+                            <span class="badge badge-high" style="font-size: 0.7rem;">${h.incidentCount} incidents</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            Centroid: ${h.centroidLat.toFixed(4)}, ${h.centroidLng.toFixed(4)}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">Hotspot analytics offline</div>`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMyComplaints();
+            loadHotspots();
+        });
+    </script>
+</body>
+</html>

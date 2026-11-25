@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Login Portal - CivicHeat</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .portal-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 0.35rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            gap: 0.25rem;
+        }
+        .portal-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.6rem 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        .portal-tab.active {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+        }
+        .quick-fill-box {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 0.85rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body style="display: flex; flex-direction: column; min-height: 100vh;">
+
+    <!-- Main Navigation -->
+    <header class="navbar">
+        <a href="/" class="brand">
+            <span class="brand-icon">🔥</span>
+            <span>CivicHeat</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">🗺️ Live Map</a>
+            <a href="/report.html" class="nav-link">📢 Report Issue</a>
+            <div id="nav-user-container"></div>
+        </nav>
+    </header>
+
+    <main style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 2.5rem 1rem;">
+        <div style="width: 100%; max-width: 480px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 2.25rem; box-shadow: var(--shadow-lg);">
+
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;" id="portal-icon">🔥</div>
+                <h2 style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em;" id="auth-title">CivicHeat Unified Portal</h2>
+                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem;" id="auth-subtitle">Select your portal to sign in or create an account</p>
+            </div>
+
+            <!-- Portal Tabs -->
+            <div class="portal-tabs">
+                <button type="button" id="tab-citizen" class="portal-tab active">👤 Citizen Login</button>
+                <button type="button" id="tab-staff" class="portal-tab">🏛️ Dept / Admin</button>
+                <button type="button" id="tab-register" class="portal-tab">📝 Register</button>
+            </div>
+
+            <!-- 1. Sign In Form -->
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label" for="login-email">Email / User ID</label>
+                    <input type="email" id="login-email" class="form-input" placeholder="name@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="login-password">Password</label>
+                    <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+                </div>
+
+                <!-- Quick One-Click Demo Credentials -->
+                <div class="quick-fill-box" id="quick-fill-section">
+                    <div style="color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 500;">⚡ Quick Demo Login:</div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" id="quick-fill-buttons">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="fillLogin('citizen.demo@civicheat.local', 'Password123!')">👤 Demo Citizen</button>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-login-submit" class="btn btn-primary" style="width: 100%;">
+                    <span>Sign In to Dashboard</span>
+                </button>
+            </form>
+
+            <!-- 2. Citizen Registration Form -->
+            <form id="register-form" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label" for="reg-fullname">Full Name</label>
+                    <input type="text" id="reg-fullname" class="form-input" placeholder="Jane Doe" minlength="2" maxlength="150" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="reg-email">Email Address</label>
+                    <input type="email" id="reg-email" class="form-input" placeholder="jane.citizen@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="reg-password">Password</label>
+                    <input type="password" id="reg-password" class="form-input" placeholder="At least 6 characters" minlength="6" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="reg-phone">Phone Number (Optional)</label>
+                    <input type="tel" id="reg-phone" class="form-input" placeholder="+1-555-0199">
+                </div>
+
+                <button type="submit" id="btn-reg-submit" class="btn btn-primary" style="width: 100%;">
+                    <span>Create Citizen Account</span>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script>
+        const tabCitizen = document.getElementById('tab-citizen');
+        const tabStaff = document.getElementById('tab-staff');
+        const tabRegister = document.getElementById('tab-register');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const authTitle = document.getElementById('auth-title');
+        const authSubtitle = document.getElementById('auth-subtitle');
+        const portalIcon = document.getElementById('portal-icon');
+        const quickFillButtons = document.getElementById('quick-fill-buttons');
+
+        function setPortalTab(activeTab) {
+            [tabCitizen, tabStaff, tabRegister].forEach(t => t.classList.remove('active'));
+            activeTab.classList.add('active');
+
+            if (activeTab === tabCitizen) {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                portalIcon.innerText = '👤';
+                authTitle.innerText = 'Citizen Portal Sign In';
+                authSubtitle.innerText = 'Track your complaints, file new reports, and view status';
+                quickFillButtons.innerHTML = `
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="fillLogin('citizen.demo@civicheat.local', 'Password123!')">👤 Demo Citizen</button>
+                `;
+            } else if (activeTab === tabStaff) {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                portalIcon.innerText = '🏛️';
+                authTitle.innerText = 'Department & Admin Command Center';
+                authSubtitle.innerText = 'Incident triage, department queues, and municipal analytics';
+                quickFillButtons.innerHTML = `
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="fillLogin('admin@civicheat.gov', 'Admin@123')">🔑 Admin</button>
+                `;
+            } else if (activeTab === tabRegister) {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                portalIcon.innerText = '📝';
+                authTitle.innerText = 'Citizen Registration';
+                authSubtitle.innerText = 'Create an account to report civic issues and receive updates';
+            }
+        }
+
+        tabCitizen.addEventListener('click', () => setPortalTab(tabCitizen));
+        tabStaff.addEventListener('click', () => setPortalTab(tabStaff));
+        tabRegister.addEventListener('click', () => setPortalTab(tabRegister));
+
+        function fillLogin(email, pass) {
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-password').value = pass;
+        }
+
+        // Login Submission
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            const submitBtn = document.getElementById('btn-login-submit');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Authenticating...';
+
+            try {
+                const res = await apiFetch('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+                setAuth(res.token, res.user);
+                showToast(`Welcome, ${res.user.fullName}!`, 'success');
+
+                setTimeout(() => {
+                    if (res.user.role === 'ADMIN' || res.user.role === 'OFFICER') {
+                        window.location.href = '/dashboard.html';
+                    } else {
+                        window.location.href = '/citizen-dashboard.html';
+                    }
+                }, 600);
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Sign In to Dashboard';
+            }
+        });
+
+        // Registration Submission
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fullName = document.getElementById('reg-fullname').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const phone = document.getElementById('reg-phone').value.trim();
+
+            const submitBtn = document.getElementById('btn-reg-submit');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Creating Account...';
+
+            try {
+                const res = await apiFetch('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ fullName, email, password, phone: phone || null })
+                });
+
+                setAuth(res.token, res.user);
+                showToast(`Account created! Welcome, ${res.user.fullName}!`, 'success');
+
+                setTimeout(() => {
+                    window.location.href = '/citizen-dashboard.html';
+                }, 600);
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Create Citizen Account';
+            }
+        });
+    </script>
+</body>
+</html>

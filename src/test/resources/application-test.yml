@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:civicheat_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+    show-sql: false
+  flyway:
+    enabled: false
+
+civicheat:
+  duplicate:
+    radius-meters: 50.0
+    window-days: 7
+  upload:
+    dir: ./test-uploads
+  jwt:
+    secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    expiry-hours: 24

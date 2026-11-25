@@ -1,0 +1,204 @@
+### ==============================================================================
+### Civic Issue Heatmap - API Request Examples (.http / REST Client Format)
+### Base URL: http://localhost:8080
+### ==============================================================================
+
+@baseUrl = http://localhost:8080
+@authToken = {{loginAdmin.response.body.token}}
+
+### ------------------------------------------------------------------------------
+### 1. Actuator Endpoints
+### ------------------------------------------------------------------------------
+
+### Health Check
+GET {{baseUrl}}/actuator/health
+Accept: application/json
+
+### Application Info
+GET {{baseUrl}}/actuator/info
+Accept: application/json
+
+### Application Metrics
+GET {{baseUrl}}/actuator/metrics
+Accept: application/json
+
+
+### ------------------------------------------------------------------------------
+### 2. Authentication Flow
+### ------------------------------------------------------------------------------
+
+### Register New Citizen Account
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Jane Citizen",
+  "email": "jane.citizen@example.com",
+  "password": "Password@123",
+  "phone": "+1-555-0199"
+}
+
+### Citizen Login
+# @name loginCitizen
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "jane.citizen@example.com",
+  "password": "Password@123"
+}
+
+### Admin / Default Seeded Login
+# @name loginAdmin
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@civicheat.gov",
+  "password": "Admin@123"
+}
+
+### Get Current User Profile (Me)
+GET {{baseUrl}}/api/v1/auth/me
+Authorization: Bearer {{loginAdmin.response.body.token}}
+Accept: application/json
+
+
+### ------------------------------------------------------------------------------
+### 3. Department Management
+### ------------------------------------------------------------------------------
+
+### List All Active Municipal Departments
+GET {{baseUrl}}/api/v1/departments
+Accept: application/json
+
+### Get Department Complaints (Filtered)
+GET {{baseUrl}}/api/v1/departments/a31ad8c2-8da7-4a21-b649-ddef0a9e4ebb/complaints?page=0&size=10
+Authorization: Bearer {{loginAdmin.response.body.token}}
+Accept: application/json
+
+
+### ------------------------------------------------------------------------------
+### 4. Complaint Reporting & Lifecycle
+### ------------------------------------------------------------------------------
+
+### Submit a New Civic Complaint (Multipart JSON + Image)
+POST {{baseUrl}}/api/v1/complaints
+Authorization: Bearer {{loginCitizen.response.body.token}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="complaint"; filename="complaint.json"
+Content-Type: application/json
+
+{
+  "title": "Hazardous Deep Pothole on Market Street",
+  "description": "Deep dangerous pothole near the intersection of 4th and Market Street causing severe traffic slowdown and hazard to bicycles.",
+  "category": "POTHOLE",
+  "latitude": 37.7749,
+  "longitude": -122.4194,
+  "address": "Market St & 4th St, San Francisco, CA"
+}
+--WebAppBoundary--
+
+### Submit Duplicate Complaint (Triggers Duplicate Detector)
+POST {{baseUrl}}/api/v1/complaints
+Authorization: Bearer {{loginCitizen.response.body.token}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="complaint"; filename="complaint.json"
+Content-Type: application/json
+
+{
+  "title": "Hazardous Deep Pothole on Market Street",
+  "description": "Deep dangerous pothole near the intersection of 4th and Market Street causing severe traffic slowdown and hazard to bicycles.",
+  "category": "POTHOLE",
+  "latitude": 37.7750,
+  "longitude": -122.4195,
+  "address": "4th & Market St"
+}
+--WebAppBoundary--
+
+### Get Complaint Details by ID
+GET {{baseUrl}}/api/v1/complaints/6dc5f0ee-2b3d-47f6-9723-e27aee09baa6
+Accept: application/json
+
+### Upvote a Complaint
+POST {{baseUrl}}/api/v1/complaints/6dc5f0ee-2b3d-47f6-9723-e27aee09baa6/upvote
+Authorization: Bearer {{loginCitizen.response.body.token}}
+Accept: application/json
+
+### Query Paginated Complaints with Multi-Filter
+GET {{baseUrl}}/api/v1/complaints?category=POTHOLE&status=ASSIGNED&page=0&size=20&sort=createdAt,desc
+Accept: application/json
+
+### Get Logged-in Citizen's Own Complaints
+GET {{baseUrl}}/api/v1/complaints/mine?page=0&size=10
+Authorization: Bearer {{loginCitizen.response.body.token}}
+Accept: application/json
+
+
+### ------------------------------------------------------------------------------
+### 5. Heatmap & Spatial Analytics
+### ------------------------------------------------------------------------------
+
+### Lightweight Heatmap Points (for Leaflet.heat)
+GET {{baseUrl}}/api/v1/heatmap/points?category=POTHOLE&days=30
+Accept: application/json
+
+### Ranked Hotspot Clusters (Grid Clustering)
+GET {{baseUrl}}/api/v1/heatmap/hotspots?cellSize=250&minCount=2
+Accept: application/json
+
+### Overall System Analytics & KPIs
+GET {{baseUrl}}/api/v1/heatmap/stats
+Accept: application/json
+
+
+### ------------------------------------------------------------------------------
+### 6. Administrative & Officer Operations
+### ------------------------------------------------------------------------------
+
+### Update Complaint Status (Officer / Admin)
+PATCH {{baseUrl}}/api/v1/complaints/6dc5f0ee-2b3d-47f6-9723-e27aee09baa6/status
+Authorization: Bearer {{loginAdmin.response.body.token}}
+Content-Type: application/json
+
+{
+  "status": "IN_PROGRESS",
+  "remark": "Field dispatch team assigned and en route with repair asphalt."
+}
+
+### Mark Complaint Resolved
+PATCH {{baseUrl}}/api/v1/complaints/6dc5f0ee-2b3d-47f6-9723-e27aee09baa6/status
+Authorization: Bearer {{loginAdmin.response.body.token}}
+Content-Type: application/json
+
+{
+  "status": "RESOLVED",
+  "remark": "Pothole successfully filled and compacted with hot mix asphalt."
+}
+
+### Provision New Department Officer Account (Admin Only)
+POST {{baseUrl}}/api/v1/admin/officers
+Authorization: Bearer {{loginAdmin.response.body.token}}
+Content-Type: application/json
+
+{
+  "fullName": "Officer Robert Vance",
+  "email": "robert.vance@civicheat.gov",
+  "password": "Officer@12345",
+  "phone": "+1-555-0144",
+  "departmentId": "a31ad8c2-8da7-4a21-b649-ddef0a9e4ebb"
+}
+
+### Reassign Complaint to Another Department (Admin Only)
+POST {{baseUrl}}/api/v1/complaints/6dc5f0ee-2b3d-47f6-9723-e27aee09baa6/reassign
+Authorization: Bearer {{loginAdmin.response.body.token}}
+Content-Type: application/json
+
+{
+  "departmentId": "ca5a1919-5c86-4b4f-87a6-3eb99c695035",
+  "reason": "Debris and garbage obstruction rather than structural pavement failure."
+}

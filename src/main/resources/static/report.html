@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Civic Issue - CivicHeat</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Main Navigation -->
+    <header class="navbar">
+        <a href="/" class="brand">
+            <span class="brand-icon">🔥</span>
+            <span>CivicHeat</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">🗺️ Live Map</a>
+            <a href="/report.html" class="nav-link active">📢 Report Issue</a>
+            <div id="nav-user-container" style="display: flex; align-items: center; gap: 0.75rem;"></div>
+        </nav>
+    </header>
+
+    <div class="dashboard-container" style="max-width: 900px;">
+        <div style="margin-bottom: 2rem; text-align: center;">
+            <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.025em;">Report a Civic Problem</h1>
+            <p style="color: var(--text-secondary);">Help municipal teams fix potholes, leaks, garbage, and broken streetlights faster with geotagged reports.</p>
+        </div>
+
+        <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 2rem; box-shadow: var(--shadow-md);">
+            <form id="report-form">
+
+                <!-- 1. Category Selection -->
+                <div class="form-group">
+                    <label class="form-label">Issue Category *</label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem;" id="category-picker">
+                        <button type="button" class="btn btn-secondary category-opt active" data-category="POTHOLE">🕳️ Pothole</button>
+                        <button type="button" class="btn btn-secondary category-opt" data-category="GARBAGE">🗑️ Garbage</button>
+                        <button type="button" class="btn btn-secondary category-opt" data-category="STREETLIGHT">💡 Streetlight</button>
+                        <button type="button" class="btn btn-secondary category-opt" data-category="WATER_LEAK">🚰 Water Leak</button>
+                        <button type="button" class="btn btn-secondary category-opt" data-category="NOISE">📢 Noise</button>
+                    </div>
+                    <input type="hidden" id="selected-category" value="POTHOLE">
+                </div>
+
+                <!-- 2. Title & Description -->
+                <div class="form-group">
+                    <label for="complaint-title" class="form-label">Title *</label>
+                    <input type="text" id="complaint-title" class="form-input" placeholder="e.g. Deep pothole damaging tires near crossing" maxlength="120" required>
+                    <div style="display:flex; justify-content:space-between;" class="form-hint">
+                        <span>Brief summary of the issue (5 - 120 chars)</span>
+                        <span id="title-char-count">0 / 120</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="complaint-desc" class="form-label">Description *</label>
+                    <textarea id="complaint-desc" class="form-textarea" rows="4" placeholder="Describe the severity, exact landmark, hazard to pedestrians or traffic, etc." maxlength="1000" required></textarea>
+                    <div style="display:flex; justify-content:space-between;" class="form-hint">
+                        <span>Detailed explanation (10 - 1000 chars)</span>
+                        <span id="desc-char-count">0 / 1000</span>
+                    </div>
+                </div>
+
+                <!-- 3. Geolocation & Pin Drop Map -->
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label class="form-label" style="margin-bottom: 0;">Geotagged Location *</label>
+                        <button type="button" id="btn-geolocation" class="btn btn-secondary btn-sm" style="color: var(--primary-light);">
+                            📍 Use My Current Location
+                        </button>
+                    </div>
+                    <div id="pin-map" style="height: 280px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 0.75rem;"></div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.8rem;">Latitude</label>
+                            <input type="number" step="any" id="complaint-lat" class="form-input" required readonly>
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.8rem;">Longitude</label>
+                            <input type="number" step="any" id="complaint-lng" class="form-input" required readonly>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="complaint-address" class="form-label" style="font-size: 0.8rem;">Street Address / Landmark (Optional)</label>
+                        <input type="text" id="complaint-address" class="form-input" placeholder="e.g. 5th Avenue & Market Street">
+                    </div>
+                </div>
+
+                <!-- 4. Photos Upload -->
+                <div class="form-group">
+                    <label class="form-label">Attach Photos (Up to 4 images)</label>
+                    <div class="dropzone" id="dropzone">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📷</div>
+                        <div style="font-weight: 600;">Click or drag images here to upload</div>
+                        <div class="form-hint">Supports JPEG, PNG, WebP (Max 5MB per file)</div>
+                        <input type="file" id="file-input" multiple accept="image/jpeg,image/png,image/webp" style="display: none;">
+                    </div>
+                    <div class="preview-grid" id="preview-grid"></div>
+                </div>
+
+                <!-- Submit Button -->
+                <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                    <a href="/" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" id="submit-btn" class="btn btn-primary" style="min-width: 180px;">
+                        <span>🚀 Submit Report</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Duplicate / Success Response Modal -->
+    <div class="modal-backdrop" id="result-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title" id="result-modal-title">Incident Reported</h3>
+                <button class="modal-close" onclick="closeModal('result-modal')">&times;</button>
+            </div>
+            <div class="modal-body" id="result-modal-body"></div>
+            <div class="modal-footer" id="result-modal-footer">
+                <a href="/citizen-dashboard.html" class="btn btn-primary btn-sm">📋 Go to My Dashboard</a>
+                <a href="/" class="btn btn-secondary btn-sm">🗺️ View on Live Map</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="/js/api.js"></script>
+
+    <script>
+        let pinMap;
+        let activeMarker;
+        let selectedFiles = [];
+
+        function initReportMap() {
+            // Default center: New Delhi, India
+            const defaultLat = 28.6139;
+            const defaultLng = 77.2090;
+
+            pinMap = L.map('pin-map').setView([defaultLat, defaultLng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(pinMap);
+
+            // Set initial marker
+            setPin(defaultLat, defaultLng);
+
+            // Click map to drop pin
+            pinMap.on('click', (e) => {
+                setPin(e.latlng.lat, e.latlng.lng);
+            });
+
+            // Geolocation Auto-prompt
+            if (navigator.geolocation) {
+                document.getElementById('btn-geolocation').addEventListener('click', () => {
+                    document.getElementById('btn-geolocation').innerText = '⏳ Locating...';
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            setPin(pos.coords.latitude, pos.coords.longitude);
+                            pinMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                            document.getElementById('btn-geolocation').innerText = '📍 Location Found!';
+                            setTimeout(() => document.getElementById('btn-geolocation').innerText = '📍 Use My Current Location', 2000);
+                        },
+                        (err) => {
+                            showToast('Geolocation error: ' + err.message, 'warning');
+                            document.getElementById('btn-geolocation').innerText = '📍 Use My Current Location';
+                        },
+                        { enableHighAccuracy: true, timeout: 8000 }
+                    );
+                });
+            }
+        }
+
+        function setPin(lat, lng) {
+            document.getElementById('complaint-lat').value = lat.toFixed(6);
+            document.getElementById('complaint-lng').value = lng.toFixed(6);
+
+            if (activeMarker) {
+                activeMarker.setLatLng([lat, lng]);
+            } else {
+                activeMarker = L.marker([lat, lng], { draggable: true }).addTo(pinMap);
+                activeMarker.on('dragend', (e) => {
+                    const pos = e.target.getLatLng();
+                    document.getElementById('complaint-lat').value = pos.lat.toFixed(6);
+                    document.getElementById('complaint-lng').value = pos.lng.toFixed(6);
+                });
+            }
+        }
+
+        // Category Picker Buttons
+        document.querySelectorAll('.category-opt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.category-opt').forEach(b => b.classList.remove('active', 'btn-primary'));
+                btn.classList.add('active', 'btn-primary');
+                document.getElementById('selected-category').value = btn.getAttribute('data-category');
+            });
+        });
+
+        // Live Character Counters
+        const titleInput = document.getElementById('complaint-title');
+        const descInput = document.getElementById('complaint-desc');
+        titleInput.addEventListener('input', () => {
+            document.getElementById('title-char-count').innerText = `${titleInput.value.length} / 120`;
+        });
+        descInput.addEventListener('input', () => {
+            document.getElementById('desc-char-count').innerText = `${descInput.value.length} / 1000`;
+        });
+
+        // File Upload Dropzone
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const previewGrid = document.getElementById('preview-grid');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+        function handleFiles(files) {
+            for (const file of Array.from(files)) {
+                if (selectedFiles.length >= 4) {
+                    showToast('Maximum 4 images allowed', 'warning');
+                    break;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    showToast(`File "${file.name}" exceeds 5MB limit`, 'error');
+                    continue;
+                }
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                    showToast(`Unsupported file type: ${file.name}`, 'error');
+                    continue;
+                }
+                selectedFiles.push(file);
+            }
+            renderPreviews();
+        }
+
+        function renderPreviews() {
+            previewGrid.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const item = document.createElement('div');
+                    item.className = 'preview-item';
+                    item.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview">
+                        <button type="button" class="preview-remove" onclick="removeFile(${index})">&times;</button>
+                    `;
+                    previewGrid.appendChild(item);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            renderPreviews();
+        }
+
+        // Form Submit Handler
+        document.getElementById('report-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const title = titleInput.value.trim();
+            const description = descInput.value.trim();
+            const category = document.getElementById('selected-category').value;
+            const lat = parseFloat(document.getElementById('complaint-lat').value);
+            const lng = parseFloat(document.getElementById('complaint-lng').value);
+            const address = document.getElementById('complaint-address').value.trim();
+
+            if (title.length < 5) {
+                showToast('Title must be at least 5 characters', 'warning');
+                return;
+            }
+            if (description.length < 10) {
+                showToast('Description must be at least 10 characters', 'warning');
+                return;
+            }
+            if (isNaN(lat) || isNaN(lng)) {
+                showToast('Please select a valid location on the map', 'warning');
+                return;
+            }
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Submitting...';
+
+            const complaintData = {
+                title,
+                description,
+                category,
+                latitude: lat,
+                longitude: lng,
+                address: address || null
+            };
+
+            const formData = new FormData();
+            formData.append('complaint', new Blob([JSON.stringify(complaintData)], { type: 'application/json' }));
+            
+            selectedFiles.forEach(file => {
+                formData.append('images', file);
+            });
+
+            try {
+                const result = await apiFetch('/complaints', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const modalBody = document.getElementById('result-modal-body');
+                const modalTitle = document.getElementById('result-modal-title');
+
+                if (result.duplicate) {
+                    modalTitle.innerText = '🔄 Report Merged with Existing Issue';
+                    modalBody.innerHTML = `
+                        <div style="background: rgba(236, 72, 153, 0.15); border: 1px solid var(--status-duplicate); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
+                            <h4 style="color: var(--status-duplicate); margin-bottom: 0.5rem; font-size: 1.1rem;">Similar Issue Already Reported!</h4>
+                            <p style="color: var(--text-primary); font-size: 0.925rem; line-height: 1.4;">
+                                Our smart spatial duplicate detector found an active issue nearby in the same category.
+                                Your submission has been linked as an automatic upvote to <strong>Ticket #${result.duplicateOfId}</strong>, boosting its resolution priority!
+                            </p>
+                        </div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                            <div><strong>Assigned Department:</strong> ${result.departmentName || 'Under Review'}</div>
+                            <div><strong>Severity Level:</strong> ${renderSeverityBadge(result.severityScore, result.severityLevel)}</div>
+                        </div>
+                    `;
+                } else {
+                    modalTitle.innerText = '✅ Issue Successfully Submitted!';
+                    modalBody.innerHTML = `
+                        <div style="background: rgba(34, 197, 94, 0.15); border: 1px solid var(--status-resolved); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
+                            <h4 style="color: var(--status-resolved); margin-bottom: 0.5rem; font-size: 1.1rem;">Ticket #${result.id} Created</h4>
+                            <p style="color: var(--text-primary); font-size: 0.925rem; line-height: 1.4;">
+                                Your report has been analyzed by our automated engines, scored with a calculated severity of <strong>${result.severityScore}/100</strong> (${result.severityLevel}), and auto-routed to the <strong>${result.departmentName}</strong> department.
+                            </p>
+                        </div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                            <div><strong>Status:</strong> ${renderStatusBadge(result.status)}</div>
+                            <div><strong>Category:</strong> ${renderCategoryBadge(result.category)}</div>
+                        </div>
+                    `;
+                }
+
+                openModal('result-modal');
+                document.getElementById('report-form').reset();
+                selectedFiles = [];
+                renderPreviews();
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = '🚀 Submit Report';
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initReportMap);
+    </script>
+</body>
+</html>

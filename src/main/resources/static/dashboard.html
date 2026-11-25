@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Command Center - CivicHeat</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Main Navigation -->
+    <header class="navbar">
+        <a href="/" class="brand">
+            <span class="brand-icon">🔥</span>
+            <span>CivicHeat <small style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">COMMAND CENTER</small></span>
+        </a>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">🗺️ Live Map</a>
+            <a href="/report.html" class="nav-link">📢 Report Issue</a>
+            <div id="nav-user-container" style="display: flex; align-items: center; gap: 0.75rem;"></div>
+        </nav>
+    </header>
+
+    <div class="dashboard-container">
+
+        <!-- Dashboard Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.025em;" id="dash-heading">Incident Command Dashboard</h1>
+                <p style="color: var(--text-secondary);" id="dash-subheading">Municipal workflow, resolution tracking, and department queues</p>
+            </div>
+            <div id="admin-actions-bar" style="display: none; gap: 0.75rem;">
+                <button class="btn btn-primary btn-sm" onclick="openCreateOfficerModal()">➕ Add Department Officer</button>
+            </div>
+        </div>
+
+        <!-- 1. Platform Statistics Cards (Admin Only) -->
+        <section id="admin-analytics-section" style="display: none; margin-bottom: 2.5rem;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Total Reported Complaints</span>
+                    <span class="stat-value" id="stat-total-complaints">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Open / Active Incidents</span>
+                    <span class="stat-value" id="stat-active-complaints" style="color: #f59e0b;">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Resolved Issues</span>
+                    <span class="stat-value" id="stat-resolved-complaints" style="color: #10b981;">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Avg. Resolution Time</span>
+                    <span class="stat-value" id="stat-avg-resolution">-- hrs</span>
+                </div>
+            </div>
+
+            <!-- Charts Container -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem;">
+                    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem;">Incidents by Category</h3>
+                    <div style="height: 240px;"><canvas id="categoryChart"></canvas></div>
+                </div>
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem;">
+                    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem;">Lifecycle Status Distribution</h3>
+                    <div style="height: 240px;"><canvas id="statusChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Complaints Table Queue -->
+        <div class="table-container">
+            <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <h2 style="font-size: 1.15rem; font-weight: 700;" id="table-title">Department Incident Queue</h2>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <select id="filter-dash-status" class="map-control-select">
+                        <option value="">All Statuses</option>
+                        <option value="SUBMITTED">Submitted</option>
+                        <option value="VERIFIED">Verified</option>
+                        <option value="ASSIGNED">Assigned</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="RESOLVED">Resolved</option>
+                        <option value="REJECTED">Rejected</option>
+                    </select>
+                    <select id="filter-dash-category" class="map-control-select">
+                        <option value="">All Categories</option>
+                        <option value="POTHOLE">Pothole</option>
+                        <option value="GARBAGE">Garbage</option>
+                        <option value="STREETLIGHT">Streetlight</option>
+                        <option value="WATER_LEAK">Water Leak</option>
+                        <option value="NOISE">Noise</option>
+                    </select>
+                    <button id="btn-refresh-table" class="btn btn-secondary btn-sm">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Severity</th>
+                            <th>Status</th>
+                            <th>Department</th>
+                            <th>Date</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="complaints-tbody">
+                        <tr>
+                            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">Loading incidents...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. Update Status Modal -->
+    <div class="modal-backdrop" id="status-modal">
+        <div class="modal-card" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Update Incident Status</h3>
+                <button class="modal-close" onclick="closeModal('status-modal')">&times;</button>
+            </div>
+            <form id="status-form">
+                <div class="modal-body">
+                    <input type="hidden" id="status-complaint-id">
+                    <div class="form-group">
+                        <label class="form-label">Target Lifecycle Status *</label>
+                        <select id="update-target-status" class="form-select" required>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="RESOLVED">Resolved</option>
+                            <option value="REJECTED">Rejected</option>
+                            <option value="ASSIGNED">Assigned</option>
+                            <option value="VERIFIED">Verified</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="status-remark">Work Remarks / Audit Comment</label>
+                        <textarea id="status-remark" class="form-textarea" rows="3" placeholder="e.g. Field crew deployed to repair surface"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('status-modal')">Cancel</button>
+                    <button type="submit" id="btn-status-submit" class="btn btn-primary btn-sm">Save Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. Reassign Department Modal (Admin Only) -->
+    <div class="modal-backdrop" id="reassign-modal">
+        <div class="modal-card" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Reassign Municipal Department</h3>
+                <button class="modal-close" onclick="closeModal('reassign-modal')">&times;</button>
+            </div>
+            <form id="reassign-form">
+                <div class="modal-body">
+                    <input type="hidden" id="reassign-complaint-id">
+                    <div class="form-group">
+                        <label class="form-label">Select Department *</label>
+                        <select id="reassign-target-dept" class="form-select" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="reassign-reason">Reassignment Reason</label>
+                        <textarea id="reassign-reason" class="form-textarea" rows="3" placeholder="e.g. Infrastructure involves underground utility lines"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('reassign-modal')">Cancel</button>
+                    <button type="submit" id="btn-reassign-submit" class="btn btn-primary btn-sm">Confirm Reassignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Provision Officer Modal (Admin Only) -->
+    <div class="modal-backdrop" id="officer-modal">
+        <div class="modal-card" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Create Department Officer Account</h3>
+                <button class="modal-close" onclick="closeModal('officer-modal')">&times;</button>
+            </div>
+            <form id="officer-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="officer-dept">Assigned Department *</label>
+                        <select id="officer-dept" class="form-select" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="officer-name">Full Name *</label>
+                        <input type="text" id="officer-name" class="form-input" placeholder="Officer John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="officer-email">Email Address *</label>
+                        <input type="email" id="officer-email" class="form-input" placeholder="officer@civicheat.gov" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="officer-pass">Password *</label>
+                        <input type="password" id="officer-pass" class="form-input" placeholder="At least 6 characters" minlength="6" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="officer-phone">Phone Number</label>
+                        <input type="tel" id="officer-phone" class="form-input" placeholder="+1-555-0188">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('officer-modal')">Cancel</button>
+                    <button type="submit" id="btn-officer-submit" class="btn btn-primary btn-sm">Create Officer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Complaint Detail Modal -->
+    <div id="modal-dash-detail" class="modal-backdrop">
+        <div class="modal-card" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Incident Dossier & Audit</h3>
+                <button class="modal-close" onclick="closeModal('modal-dash-detail')">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-dash-detail-body">
+                <!-- Injected dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-dash-detail')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        let allDepartments = [];
+        let categoryChartInstance = null;
+        let statusChartInstance = null;
+
+        async function initDashboard() {
+            if (!isAuthenticated()) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const user = getUser();
+            if (user.role === 'CITIZEN') {
+                showToast('Redirecting to your Citizen Dashboard...', 'info');
+                setTimeout(() => window.location.href = '/citizen-dashboard.html', 800);
+                return;
+            }
+
+
+            // Load Departments List
+            try {
+                allDepartments = await apiFetch('/departments');
+                populateDepartmentDropdowns();
+            } catch (err) {
+                console.error('Failed to load departments', err);
+            }
+
+            if (user.role === 'ADMIN') {
+                document.getElementById('dash-heading').innerText = 'Platform Incident Command (Administrator)';
+                document.getElementById('dash-subheading').innerText = 'System-wide analytics, officer management, and department workflows';
+                document.getElementById('admin-actions-bar').style.display = 'flex';
+                document.getElementById('admin-analytics-section').style.display = 'block';
+                loadAnalytics();
+            } else if (user.role === 'OFFICER') {
+                document.getElementById('dash-heading').innerText = `${user.departmentName || 'Department'} Queue`;
+                document.getElementById('dash-subheading').innerText = `Active work tickets assigned to ${user.departmentName || 'your department'}`;
+            }
+
+            loadComplaints();
+        }
+
+        function populateDepartmentDropdowns() {
+            const reassignSelect = document.getElementById('reassign-target-dept');
+            const officerSelect = document.getElementById('officer-dept');
+
+            const optionsHtml = allDepartments.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
+            if (reassignSelect) reassignSelect.innerHTML = optionsHtml;
+            if (officerSelect) officerSelect.innerHTML = optionsHtml;
+        }
+
+        async function loadAnalytics() {
+            try {
+                const stats = await apiFetch('/heatmap/stats');
+                document.getElementById('stat-total-complaints').innerText = stats.totalComplaints || 0;
+                
+                const active = (stats.statusCounts?.SUBMITTED || 0) + (stats.statusCounts?.VERIFIED || 0) + (stats.statusCounts?.ASSIGNED || 0) + (stats.statusCounts?.IN_PROGRESS || 0);
+                document.getElementById('stat-active-complaints').innerText = active;
+                document.getElementById('stat-resolved-complaints').innerText = stats.statusCounts?.RESOLVED || 0;
+                document.getElementById('stat-avg-resolution').innerText = `${stats.averageResolutionTimeHours || 0} hrs`;
+
+                renderCharts(stats);
+            } catch (err) {
+                console.error('Analytics load error', err);
+            }
+        }
+
+        function renderCharts(stats) {
+            // Category Doughnut
+            const catCtx = document.getElementById('categoryChart').getContext('2d');
+            const catLabels = Object.keys(stats.categoryCounts || {});
+            const catData = Object.values(stats.categoryCounts || {});
+
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            categoryChartInstance = new Chart(catCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catData,
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#94a3b8' } } }
+                }
+            });
+
+            // Status Bar Chart
+            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            const statusLabels = Object.keys(stats.statusCounts || {});
+            const statusData = Object.values(stats.statusCounts || {});
+
+            if (statusChartInstance) statusChartInstance.destroy();
+            statusChartInstance = new Chart(statusCtx, {
+                type: 'bar',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        label: 'Tickets',
+                        data: statusData,
+                        backgroundColor: '#6366f1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        }
+
+        async function loadComplaints() {
+            const user = getUser();
+            const statusFilter = document.getElementById('filter-dash-status').value;
+            const catFilter = document.getElementById('filter-dash-category').value;
+
+            const params = new URLSearchParams();
+            if (statusFilter) params.append('status', statusFilter);
+            if (catFilter) params.append('category', catFilter);
+            params.append('size', '50');
+
+            const tbody = document.getElementById('complaints-tbody');
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">Loading incidents...</td></tr>`;
+
+            try {
+                let page;
+                if (user.role === 'OFFICER' && user.departmentId) {
+                    page = await apiFetch(`/departments/${user.departmentId}/complaints?${params.toString()}`);
+                } else {
+                    page = await apiFetch(`/complaints?${params.toString()}`);
+                }
+
+                const list = page.content || [];
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">No complaints found in this queue.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = list.map(c => `
+                    <tr>
+                        <td style="font-family: monospace; font-size: 0.8rem; color: var(--text-muted);">${c.id.substring(0, 8)}...</td>
+                        <td><strong>${escapeHtml(c.title)}</strong></td>
+                        <td>${renderCategoryBadge(c.category)}</td>
+                        <td>${renderSeverityBadge(c.severityScore, c.severityLevel)}</td>
+                        <td>${renderStatusBadge(c.status)}</td>
+                        <td>${escapeHtml(c.departmentName || 'Unassigned')}</td>
+                        <td style="color: var(--text-muted); font-size: 0.8rem;">${formatDate(c.createdAt)}</td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <button class="btn btn-secondary btn-sm" onclick="viewComplaintDetail('${c.id}')" title="View Dossier">Details</button>
+                            <button class="btn btn-secondary btn-sm" onclick="openUpdateStatusModal('${c.id}', '${c.status}')">Status</button>
+                            ${isAdmin() ? `<button class="btn btn-secondary btn-sm" onclick="openReassignModal('${c.id}')" title="Reassign Department">Reassign</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--sev-critical); padding: 3rem;">Error: ${escapeHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        // View Complaint Details in Command Center
+        async function viewComplaintDetail(id) {
+            try {
+                const c = await apiFetch(`/complaints/${id}`);
+                const body = document.getElementById('modal-dash-detail-body');
+                
+                let mediaHtml = '';
+                if (c.images && c.images.length > 0) {
+                    mediaHtml = `
+                        <div style="margin-top: 1rem;">
+                            <label class="form-label">Attached Incident Photos:</label>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                ${c.images.map(img => `
+                                    <a href="${img.imageUrl}" target="_blank">
+                                        <img src="${img.imageUrl}" style="width: 100px; height: 100px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let historyHtml = '';
+                if (c.statusHistories && c.statusHistories.length > 0) {
+                    historyHtml = `
+                        <div style="margin-top: 1.25rem;">
+                            <label class="form-label">Status Progression Audit:</label>
+                            <div style="background: rgba(15, 23, 42, 0.6); border-radius: var(--radius-md); padding: 0.75rem; border: 1px solid var(--border-color); font-size: 0.8rem;">
+                                ${c.statusHistories.map(h => `
+                                    <div style="padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                        <strong>${renderStatusBadge(h.newStatus)}</strong> by ${escapeHtml(h.changedByUserName || 'Staff')} on ${formatDate(h.createdAt)}
+                                        ${h.remarks ? `<br><span style="color: var(--text-muted); margin-top: 0.2rem; display: inline-block;">💬 ${escapeHtml(h.remarks)}</span>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                body.innerHTML = `
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                        ${renderCategoryBadge(c.category)}
+                        ${renderStatusBadge(c.status)}
+                        ${renderSeverityBadge(c.severityScore, c.severityLevel)}
+                        ${c.duplicate ? '<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">Linked Duplicate</span>' : ''}
+                    </div>
+                    <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">${escapeHtml(c.title)}</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">${escapeHtml(c.description || 'No description provided')}</p>
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
+                        <div><strong>Assigned Department:</strong> ${escapeHtml(c.departmentName || 'Unassigned')}</div>
+                        <div><strong>Reporter:</strong> ${escapeHtml(c.reporterName || 'Citizen')} (${escapeHtml(c.reporterEmail || 'N/A')})</div>
+                        <div><strong>Community Upvotes:</strong> ${c.upvoteCount || 0}</div>
+                        <div><strong>Location:</strong> ${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)}</div>
+                        <div><strong>Created At:</strong> ${formatDate(c.createdAt)}</div>
+                        <div><strong>Resolved At:</strong> ${c.resolvedAt ? formatDate(c.resolvedAt) : 'In Progress'}</div>
+                    </div>
+                    ${mediaHtml}
+                    ${historyHtml}
+                `;
+
+                openModal('modal-dash-detail');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        // Status Update Modal
+        function openUpdateStatusModal(id, currentStatus) {
+            document.getElementById('status-complaint-id').value = id;
+            document.getElementById('update-target-status').value = currentStatus === 'RESOLVED' ? 'IN_PROGRESS' : 'IN_PROGRESS';
+            document.getElementById('status-remark').value = '';
+            openModal('status-modal');
+        }
+
+        document.getElementById('status-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('status-complaint-id').value;
+            const status = document.getElementById('update-target-status').value;
+            const remark = document.getElementById('status-remark').value.trim();
+
+            const submitBtn = document.getElementById('btn-status-submit');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Saving...';
+
+            try {
+                await apiFetch(`/complaints/${id}/status`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status, remark: remark || null })
+                });
+
+                showToast('Status successfully updated', 'success');
+                closeModal('status-modal');
+                loadComplaints();
+                if (isAdmin()) loadAnalytics();
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Save Status';
+            }
+        });
+
+        // Reassignment Modal (Admin)
+        function openReassignModal(id) {
+            document.getElementById('reassign-complaint-id').value = id;
+            document.getElementById('reassign-reason').value = '';
+            openModal('reassign-modal');
+        }
+
+        document.getElementById('reassign-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('reassign-complaint-id').value;
+            const departmentId = document.getElementById('reassign-target-dept').value;
+            const reason = document.getElementById('reassign-reason').value.trim();
+
+            const submitBtn = document.getElementById('btn-reassign-submit');
+            submitBtn.disabled = true;
+
+            try {
+                await apiFetch(`/complaints/${id}/reassign`, {
+                    method: 'POST',
+                    body: JSON.stringify({ departmentId, reason: reason || null })
+                });
+
+                showToast('Complaint successfully reassigned', 'success');
+                closeModal('reassign-modal');
+                loadComplaints();
+                loadAnalytics();
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Create Officer Modal (Admin)
+        function openCreateOfficerModal() {
+            document.getElementById('officer-form').reset();
+            openModal('officer-modal');
+        }
+
+        document.getElementById('officer-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const departmentId = document.getElementById('officer-dept').value;
+            const fullName = document.getElementById('officer-name').value.trim();
+            const email = document.getElementById('officer-email').value.trim();
+            const password = document.getElementById('officer-pass').value;
+            const phone = document.getElementById('officer-phone').value.trim();
+
+            const submitBtn = document.getElementById('btn-officer-submit');
+            submitBtn.disabled = true;
+
+            try {
+                const res = await apiFetch('/admin/officers', {
+                    method: 'POST',
+                    body: JSON.stringify({ departmentId, fullName, email, password, phone: phone || null })
+                });
+
+                showToast(`Officer account created for ${res.fullName}!`, 'success');
+                closeModal('officer-modal');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Filter Handlers
+        document.getElementById('filter-dash-status').addEventListener('change', loadComplaints);
+        document.getElementById('filter-dash-category').addEventListener('change', loadComplaints);
+        document.getElementById('btn-refresh-table').addEventListener('click', () => {
+            loadComplaints();
+            if (isAdmin()) loadAnalytics();
+            showToast('Queue refreshed', 'info');
+        });
+
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>

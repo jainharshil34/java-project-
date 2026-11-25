@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: civic-issue-heatmap
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 20MB
+
+server:
+  port: ${PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+civicheat:
+  duplicate:
+    radius-meters: 50.0
+    window-days: 14
+    threshold: 0.65
+    distance-weight: 0.6
+    text-weight: 0.4
+  upload:
+    dir: ${UPLOAD_DIR:./uploads}
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    expiry-hours: 24

@@ -1,0 +1,51 @@
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: civicheat-postgis
+    environment:
+      POSTGRES_DB: ${DB_NAME:-civicheat_db}
+      POSTGRES_USER: ${DB_USERNAME:-civic_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-civic_secret}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-civic_user} -d ${DB_NAME:-civicheat_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - civicheat-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: civicheat-app
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      DB_HOST: postgis
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-civicheat_db}
+      DB_USERNAME: ${DB_USERNAME:-civic_user}
+      DB_PASSWORD: ${DB_PASSWORD:-civic_secret}
+      UPLOAD_DIR: /app/uploads
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    ports:
+      - "8080:8080"
+    volumes:
+      - app_uploads:/app/uploads
+    depends_on:
+      postgis:
+        condition: service_healthy
+    networks:
+      - civicheat-net
+
+volumes:
+  postgis_data:
+  app_uploads:
+
+networks:
+  civicheat-net:
+    driver: bridge
