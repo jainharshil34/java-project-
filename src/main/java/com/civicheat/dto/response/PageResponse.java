@@ -55,4 +55,16 @@ public class PageResponse<T> {
                 .isFirst(page.isFirst())
                 .build();
     }
+
+    public static <T> PageResponse<T> empty() {
+        return PageResponse.<T>builder()
+                .content(java.util.List.of())
+                .pageNumber(0)
+                .pageSize(0)
+                .totalElements(0)
+                .totalPages(0)
+                .isLast(true)
+                .isFirst(true)
+                .build();
+    }
 }

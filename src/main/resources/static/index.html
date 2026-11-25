@@ -56,7 +56,10 @@
                 <option value="30">Past 30 Days</option>
             </select>
 
+            <input type="text" id="filter-search" class="map-control-select" placeholder="🔍 Search issues..." style="min-width: 170px;" />
+
             <button id="btn-refresh" class="btn btn-secondary btn-sm" title="Reload Heatmap Data">🔄 Refresh</button>
+            <a href="/api/v1/export/complaints.csv" class="btn btn-secondary btn-sm" title="Download CSV" style="text-decoration: none;">📥 Export CSV</a>
         </div>
 
         <!-- Leaflet Map Canvas -->
@@ -116,7 +119,19 @@
 
                 <!-- Status Timeline History -->
                 <label class="form-label">Status Timeline</label>
-                <div class="timeline" id="modal-timeline"></div>
+                <div class="timeline" id="modal-timeline" style="margin-bottom: 1.25rem;"></div>
+
+                <!-- Community Discussion / Comments -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <label class="form-label">💬 Community Discussion</label>
+                    <div id="modal-comments-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Loading comments...</div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="modal-comment-input" class="map-control-select" placeholder="Add a comment or update..." style="flex: 1;" />
+                        <button id="modal-comment-submit" class="btn btn-primary btn-sm">Post</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button id="modal-upvote-btn" class="btn btn-primary btn-sm">
@@ -345,10 +360,63 @@
                 }
 
                 openModal('complaint-modal');
+                loadModalComments(id);
             } catch (err) {
                 showToast('Failed to load complaint details: ' + err.message, 'error');
             }
         }
+
+        async function loadModalComments(complaintId) {
+            const container = document.getElementById('modal-comments-list');
+            try {
+                const page = await apiFetch(`/complaints/${complaintId}/comments?size=50`);
+                const comments = page.content || [];
+                if (comments.length === 0) {
+                    container.innerHTML = '<div style="font-size: 0.85rem; color: var(--text-muted);">No comments yet. Start the discussion!</div>';
+                    return;
+                }
+                container.innerHTML = comments.map(cm => `
+                    <div style="background: rgba(15, 23, 42, 0.55); padding: 0.6rem 0.8rem; border-radius: var(--radius-md); border: 1px solid ${cm.isOfficial ? 'rgba(59,130,246,0.45)' : 'var(--border-color)'};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; margin-bottom: 0.25rem;">
+                            <span>
+                                <strong>${escapeHtml(cm.authorName)}</strong>
+                                ${cm.isOfficial ? '<span class="badge badge-medium" style="margin-left:0.35rem; font-size:0.65rem;">OFFICIAL</span>' : ''}
+                            </span>
+                            <span style="color: var(--text-muted);">${formatDate(cm.createdAt)}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(cm.content)}</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = '<div style="font-size: 0.85rem; color: #ef4444;">Failed to load comments.</div>';
+            }
+        }
+
+        document.getElementById('modal-comment-submit').addEventListener('click', async () => {
+            if (!currentComplaintId) return;
+            if (!isAuthenticated()) {
+                showToast('Please sign in to post a comment', 'warning');
+                setTimeout(() => window.location.href = '/login.html', 1000);
+                return;
+            }
+            const input = document.getElementById('modal-comment-input');
+            const content = input.value.trim();
+            if (content.length < 3) {
+                showToast('Comment must be at least 3 characters', 'warning');
+                return;
+            }
+            try {
+                await apiFetch(`/complaints/${currentComplaintId}/comments`, {
+                    method: 'POST',
+                    body: JSON.stringify({ content })
+                });
+                input.value = '';
+                showToast('Comment posted!', 'success');
+                await loadModalComments(currentComplaintId);
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        });
 
         // Upvote button handler
         document.getElementById('modal-upvote-btn').addEventListener('click', async () => {
@@ -388,6 +456,28 @@
         // Filters Change
         document.getElementById('filter-category').addEventListener('change', loadData);
         document.getElementById('filter-days').addEventListener('change', loadData);
+        document.getElementById('filter-search').addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                const q = e.target.value.trim();
+                if (!q) {
+                    loadData();
+                    return;
+                }
+                try {
+                    const res = await apiFetch(`/search/complaints?q=${encodeURIComponent(q)}&size=100`);
+                    const items = res.content || [];
+                    renderMarkers(items);
+                    activeViewMode = 'markers';
+                    document.getElementById('toggle-markers').classList.add('active');
+                    document.getElementById('toggle-heat').classList.remove('active');
+                    if (heatLayer) map.removeLayer(heatLayer);
+                    if (markersLayer) markersLayer.addTo(map);
+                    showToast(`Found ${items.length} matching issue(s)`, 'info');
+                } catch (err) {
+                    showToast('Search failed: ' + err.message, 'error');
+                }
+            }
+        });
         document.getElementById('btn-refresh').addEventListener('click', () => {
             loadData();
             showToast('Heatmap data refreshed', 'info');

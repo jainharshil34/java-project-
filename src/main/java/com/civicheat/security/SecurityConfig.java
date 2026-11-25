@@ -94,6 +94,8 @@ public class SecurityConfig {
                         // Public Complaint Search & Detail (Notice /mine is restricted)
                         .requestMatchers(HttpMethod.GET, "/api/v1/complaints/mine").hasAnyRole("CITIZEN", "OFFICER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/complaints", "/api/v1/complaints/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/complaints/{complaintId}/comments").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/search/**", "/api/v1/analytics/**", "/api/v1/export/**").permitAll()
 
                         // Citizen / Authenticated User Operations
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/me").authenticated()

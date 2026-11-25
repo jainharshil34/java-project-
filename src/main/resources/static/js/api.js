@@ -245,6 +245,18 @@ function setupNavbar() {
     if (user && isAuthenticated()) {
         const isStaff = user.role === 'ADMIN' || user.role === 'OFFICER';
         userContainer.innerHTML = `
+            <div style="position: relative; display: inline-block;">
+                <button id="notif-bell-btn" class="btn btn-secondary btn-sm" title="Notifications" style="position: relative;">
+                    🔔 <span id="notif-unread-badge" style="display:none; background:#ef4444; color:#fff; border-radius:9999px; padding:0.05rem 0.4rem; font-size:0.7rem; margin-left:0.2rem;">0</span>
+                </button>
+                <div id="notif-dropdown" style="display:none; position:absolute; right:0; top:115%; width:320px; max-height:380px; overflow-y:auto; background:var(--bg-surface, #1e293b); border:1px solid var(--border-color, #334155); border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,0.45); z-index:2000; padding:0.75rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; padding-bottom:0.5rem; border-bottom:1px solid var(--border-color, #334155);">
+                        <strong style="font-size:0.85rem;">Notifications</strong>
+                        <button id="notif-mark-read-btn" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:0.2rem 0.5rem;">Mark all read</button>
+                    </div>
+                    <div id="notif-list" style="font-size:0.8rem; color:var(--text-secondary, #cbd5e1);">Loading...</div>
+                </div>
+            </div>
             <div class="user-badge">
                 <span>👤 <strong>${escapeHtml(user.fullName)}</strong></span>
                 <span class="role-pill role-${user.role}">${user.role}</span>
@@ -254,6 +266,33 @@ function setupNavbar() {
                 : `<a href="/citizen-dashboard.html" class="nav-link">📋 My Citizen Dashboard</a>`}
             <button id="logout-btn" class="btn btn-secondary btn-sm">Sign Out</button>
         `;
+
+        loadUnreadNotificationCount();
+
+        const bellBtn = document.getElementById('notif-bell-btn');
+        const dropdown = document.getElementById('notif-dropdown');
+        bellBtn?.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.style.display === 'block';
+            dropdown.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) await loadNotificationsDropdown();
+        });
+
+        document.getElementById('notif-mark-read-btn')?.addEventListener('click', async () => {
+            try {
+                await apiFetch('/notifications/mark-all-read', { method: 'POST' });
+                document.getElementById('notif-unread-badge').style.display = 'none';
+                await loadNotificationsDropdown();
+            } catch (err) {
+                showToast('Failed to mark notifications read', 'error');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (dropdown && !dropdown.contains(e.target) && e.target !== bellBtn) {
+                dropdown.style.display = 'none';
+            }
+        });
 
         document.getElementById('logout-btn')?.addEventListener('click', () => {
             clearAuth();
@@ -268,4 +307,44 @@ function setupNavbar() {
 }
 
 document.addEventListener('DOMContentLoaded', setupNavbar);
+
+async function loadUnreadNotificationCount() {
+    if (!isAuthenticated()) return;
+    try {
+        const res = await apiFetch('/notifications/unread-count');
+        const badge = document.getElementById('notif-unread-badge');
+        if (badge && res && typeof res.unreadCount === 'number') {
+            if (res.unreadCount > 0) {
+                badge.innerText = res.unreadCount;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (e) {
+        // Ignore silent polling errors
+    }
+}
+
+async function loadNotificationsDropdown() {
+    const list = document.getElementById('notif-list');
+    if (!list) return;
+    try {
+        const page = await apiFetch('/notifications?size=10');
+        const items = page.content || [];
+        if (items.length === 0) {
+            list.innerHTML = '<div style="padding:0.75rem; text-align:center; color:var(--text-muted);">No notifications yet.</div>';
+            return;
+        }
+        list.innerHTML = items.map(n => `
+            <div style="padding:0.5rem; border-radius:6px; margin-bottom:0.35rem; background:${n.isRead ? 'transparent' : 'rgba(59,130,246,0.12)'}; border:1px solid rgba(255,255,255,0.06);">
+                <div style="font-weight:600; font-size:0.8rem; margin-bottom:0.15rem;">${escapeHtml(n.title)}</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(n.message)}</div>
+                <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">${formatDate(n.createdAt)}</div>
+            </div>
+        `).join('');
+    } catch (err) {
+        list.innerHTML = '<div style="color:#ef4444; padding:0.5rem;">Failed to load notifications.</div>';
+    }
+}
 

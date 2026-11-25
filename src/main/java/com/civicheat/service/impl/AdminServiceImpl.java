@@ -20,6 +20,7 @@ import com.civicheat.repository.ComplaintStatusHistoryRepository;
 import com.civicheat.repository.DepartmentRepository;
 import com.civicheat.repository.UserRepository;
 import com.civicheat.service.AdminService;
+import com.civicheat.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -48,6 +49,7 @@ public class AdminServiceImpl implements AdminService {
     private final PasswordEncoder passwordEncoder;
     private final ComplaintMapper complaintMapper;
     private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
     /**
      * Finite state machine defining permitted lifecycle status transitions.
@@ -120,6 +122,17 @@ public class AdminServiceImpl implements AdminService {
 
         statusHistoryRepository.save(history);
         savedComplaint.getStatusHistories().add(history);
+
+        if (savedComplaint.getReporter() != null) {
+            notificationService.sendNotification(
+                    savedComplaint.getReporter().getEmail(),
+                    "Complaint status updated: " + targetStatus,
+                    String.format("Your complaint '%s' moved from %s to %s. %s",
+                            savedComplaint.getTitle(), currentStatus, targetStatus, remarks),
+                    savedComplaint.getId(),
+                    "STATUS_CHANGED"
+            );
+        }
 
         log.info("Complaint {} status transitioned from {} to {} by {}", complaintId, currentStatus, targetStatus, currentUserEmail);
         return complaintMapper.toDetailResponse(savedComplaint);

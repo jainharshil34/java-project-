@@ -110,6 +110,9 @@ public interface ComplaintRepository extends JpaRepository<Complaint, UUID>, Jpa
 
     Page<Complaint> findByReporterIdOrderByCreatedAtDesc(UUID reporterId, Pageable pageable);
 
+    Page<Complaint> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(
+            String title, String description, Pageable pageable);
+
     List<Complaint> findByCategoryAndCreatedAtAfterAndStatusNotIn(
             IssueCategory category,
             Instant sinceDate,
